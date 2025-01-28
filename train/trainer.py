@@ -18,7 +18,6 @@ def setup_training(config: TrainingConfig):
         save_steps=1000,
         save_total_limit=3,
         remove_unused_columns=False,
-        cache_dir=config.cache_dir,
     )
 
 
