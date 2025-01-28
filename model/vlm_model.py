@@ -7,13 +7,14 @@ from config.settings import ModelConfig
 class VisionLanguageModel(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
-        self.vision_encoder = MobileViTModel.from_pretrained(config.vision_model)
+        self.vision_encoder = MobileViTModel.from_pretrained(config.vision_model, cache_dir=config.cache_dir)
         self._freeze_vision_encoder()
         
         self.llm = AutoModelForCausalLM.from_pretrained(
             config.llm_model,
             device_map="auto",
-            torch_dtype=torch.bfloat16
+            torch_dtype=torch.bfloat16,
+            cache_dir=config.cache_dir
         )
         
         self.projection = self._build_projection(config)

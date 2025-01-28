@@ -6,6 +6,7 @@ class ModelConfig:
     llm_model: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     lora_rank: int = 8
     projection_hidden_dim: int = 1024
+    cache_dir: str = "./model_cache"
 
 @dataclass
 class TrainingConfig:
