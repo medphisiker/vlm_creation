@@ -88,3 +88,17 @@ class VisionLanguageModel(nn.Module):
         return self.llm(
             inputs_embeds=combined_embeds, attention_mask=extended_attention_mask
         )
+        
+    def generate(self, pixel_values, input_ids, **kwargs):
+        # Получаем визуальные эмбеддинги
+        with torch.no_grad():
+            vision_output = self.vision_encoder(pixel_values)
+            visual_features = vision_output.last_hidden_state[:, 0, :]
+        
+        visual_embeds = self.projection(visual_features)
+        
+        # Генерация с визуальным контекстом
+        return self.llm.generate(
+            inputs_embeds=visual_embeds.unsqueeze(1),
+            **kwargs
+        )

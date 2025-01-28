@@ -15,6 +15,7 @@ peft = "^0.14.0"
 datasets = "^3.2.0"
 pillow = "^11.1.0"
 tensorboard = "^2.18.0"
+sacrebleu = "^2.5.1"
 
 
 [build-system]

@@ -13,16 +13,24 @@ def setup_training(config: TrainingConfig):
         fp16=True,
         logging_steps=50,
         report_to=["tensorboard"],
-        eval_strategy="steps",
-        eval_steps=500,
+        evaluation_strategy="steps",
+        eval_steps=config.eval_bleu_steps,
         save_strategy="steps",
         save_steps=500,
         save_total_limit=3,
         remove_unused_columns=False,
+        predict_with_generate=True,
+        metric_for_best_model="bleu",
+        greater_is_better=True,
     )
 
 
 class CustomTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bleu = BLEU()
+        self.best_bleu = 0.0
+        
     def compute_loss(
         self, model, inputs, return_outputs=False, num_items_in_batch=None
     ):
@@ -33,6 +41,33 @@ class CustomTrainer(Trainer):
         )
         loss = self._calculate_loss(outputs.logits, inputs["input_ids"])
         return (loss, outputs) if return_outputs else loss
+    
+    def evaluation_step(self, model, inputs):
+        # Генерация текста для вычисления BLEU
+        generated_ids = model.generate(
+            inputs["pixel_values"].to(model.device),
+            input_ids=inputs["input_ids"][:, :1].to(model.device),  # Берем только BOS токен
+            max_length=self.args.max_gen_length,
+            num_beams=self.args.num_beams,
+            early_stopping=True
+        )
+        return generated_ids, inputs["labels"]
+    
+    def compute_metrics(self, eval_preds):
+        pred_ids, label_ids = eval_preds
+        decoded_preds = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+        
+        # Декодируем метки, игнорируя pad_token
+        label_ids[label_ids == self.tokenizer.pad_token_id] = -100
+        decoded_labels = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+        
+        # Вычисляем BLEU score
+        bleu_score = self.bleu.corpus_score(
+            decoded_preds,
+            [decoded_labels]
+        ).score
+        
+        return {"bleu": bleu_score}
 
     def _calculate_loss(self, logits, labels):
         # Учитываем смещение на 1 токен из-за конкатенации визуальных эмбеддингов
@@ -46,3 +81,20 @@ class CustomTrainer(Trainer):
             ignore_index=self.model.llm.config.pad_token_id,
         )
         return loss
+    
+    def evaluate(self, **kwargs):
+        # Сохраняем оригинальный токенизатор
+        original_tokenizer = self.tokenizer
+        self.tokenizer = self.data_collator.tokenizer
+        
+        eval_results = super().evaluate(**kwargs)
+        
+        # Восстанавливаем токенизатор
+        self.tokenizer = original_tokenizer
+        
+        # Сохраняем лучшую модель
+        if eval_results["bleu"] > self.best_bleu:
+            self.best_bleu = eval_results["bleu"]
+            self.save_model(f"{self.args.output_dir}/best_model")
+            
+        return eval_results
