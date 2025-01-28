@@ -1,15 +1,17 @@
-from transformers import AutoTokenizer, MobileViTImageProcessor
+from transformers import AutoTokenizer, ViTImageProcessor
 
 
 class DataProcessor:
     def __init__(self, model_config):
-        self.image_processor = MobileViTImageProcessor.from_pretrained(
+        self.image_processor = ViTImageProcessor.from_pretrained(
             model_config.vision_model, cache_dir=model_config.cache_dir
         )
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_config.llm_model, cache_dir=model_config.cache_dir
         )
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        # Гарантируем наличие pad_token
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def process_text(self, examples):
         return self.tokenizer(

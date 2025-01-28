@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelConfig:
-    vision_model: str = "apple/mobilevit-small"
+    vision_model: str = "google/vit-base-patch16-224-in21k"  # Changed to standard ViT
     llm_model: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
     lora_rank: int = 8
     projection_hidden_dim: int = 1024

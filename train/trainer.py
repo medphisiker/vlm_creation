@@ -14,9 +14,9 @@ def setup_training(config: TrainingConfig):
         logging_steps=50,
         report_to=["tensorboard"],
         eval_strategy="steps",
-        eval_steps=1000,
+        eval_steps=500,
         save_strategy="steps",
-        save_steps=1000,
+        save_steps=500,
         save_total_limit=3,
         remove_unused_columns=False,
     )
@@ -35,10 +35,14 @@ class CustomTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
     def _calculate_loss(self, logits, labels):
-        shift_logits = logits[:, :-1, :]
-        shift_labels = labels[:, 1:]
-        return torch.nn.functional.cross_entropy(
+        # Учитываем смещение на 1 токен из-за конкатенации визуальных эмбеддингов
+        shift_logits = logits[:, 1:-1, :]  # [batch, seq_len-2, vocab_size]
+        shift_labels = labels[:, 1:]  # [batch, seq_len-1]
+
+        # Изменяем размерности для вычисления потерь
+        loss = torch.nn.functional.cross_entropy(
             shift_logits.reshape(-1, shift_logits.size(-1)),
             shift_labels.reshape(-1),
             ignore_index=self.model.llm.config.pad_token_id,
         )
+        return loss
