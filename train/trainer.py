@@ -11,7 +11,12 @@ def setup_training(config: TrainingConfig):
         learning_rate=config.learning_rate,
         fp16=True,
         logging_steps=50,
-        save_strategy="epoch",
+        report_to=["tensorboard"],
+        eval_strategy="steps",
+        eval_steps=1000,
+        save_strategy="steps",
+        save_steps=1000,
+        save_total_limit=3,
         remove_unused_columns=False,
         cache_dir=config.cache_dir,
     )
